@@ -1,0 +1,17 @@
+.SUFFIXES :	.c .o
+
+OBJECTS = 20151571.o
+SRCS = 20151571.c
+
+CC = gcc
+CFLAGS = -wall
+
+TARGET = 20151571
+
+$(TARGET) : $(OBJECTS)
+			$(CC) $(TARGET) $(OBJECTS)
+
+clean:
+		rm $(OBJECTS) $(TARGET) core
+
+20151571.o : 20151571.h 20151571.c
