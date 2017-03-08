@@ -7,7 +7,25 @@ void print_help(){
 }
 
 void print_dir(){
+    DIR *dirp;
+    struct dirent *direntp;
+    struct stat buf;
+    if( (dirp = opendir(",")) == NULL){
+        printf("Can not Open Directory\n");
+        return;
+    }
 
+    while( (direntp = readdir(dirp)) != NULL){
+        stat(direntp->d_name, &buf);
+        printf("%s", direntp->d_name);
+
+        if( S_ISDIR(buf.st_mode) )
+            printf("/");
+        else if( S_ISREG(buf.st_mode) && buf.st_mode & 0111)
+            printf("*");
+        puts("");
+    }
+    closedir(dirp);
 }
 
 
