@@ -4,9 +4,9 @@ OBJECTS = 20151571.o parkunsang.o
 SRCS = 20151571.c parkunsang.c
 
 CC = gcc
-CFLAGS = -Wall
+CFLAGS = -c -Wall -W
 
-TARGET = 20151571
+target = 20151571.out
 
 $(TARGET) : $(OBJECTS)
 			$(CC) -o $(TARGET) $(OBJECTS)
@@ -14,5 +14,5 @@ $(TARGET) : $(OBJECTS)
 clean:
 		rm $(OBJECTS) $(TARGET) core
 
-20151571.o : 20151571.h 20151571.c
 parkunsang.o : 20151571.h parkunsang.c
+20151571.o : 20151571.h 20151571.c

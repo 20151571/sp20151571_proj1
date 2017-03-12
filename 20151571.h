@@ -9,35 +9,46 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+enum COMMAND{
+    help, dir, quit, history, dump, edit,
+    Fill, Reset, opcode, opcodelist,
+    Error
+};
 typedef struct LINKED_LIST * History;
-typedef struct LINKED_LIST * Link;
+typedef struct LINKED_LIST * Lnode;
+typedef struct HASH_Linked_list * Hnode;
+
 typedef struct LINKED_LIST{
     char *data;
-    Link next;
+    Lnode next;
 }Linked_list;
 
 #ifndef HASH_SIZE
 #define HASH_SIZE 20
 
 typedef struct _HASH_{
-    int Hash_size;
-    struct HASH_Linked_list *Table[HASH_SIZE];
+    int size;
+    Hnode Table[HASH_SIZE];
 }Hash;
 #endif
 
 
 typedef struct HASH_Linked_list{
     int n_opcode;
-    char * str_opcode;
-    struct HASH_Linked_list *next;
-}Hash_table;
+    char str_opcode[10];
+    Hnode *next;
+}Hash_node;
 
 
 typedef struct MEMORY{
     char memory[1048576];
-}Memory;
+    int last_address;
+    int max_address;
+}Shell_Memory;
 
-static const char *help_list[] = {
+
+
+ char *help_list[] = {
     "h[elp]",
     "d[ir]",
     "q[uit]",
@@ -50,7 +61,7 @@ static const char *help_list[] = {
     "opcodelist"
 };
 
-static const char *help[] = {
+ char *Help[] = {
     "h",
     "help",
     "q",
@@ -68,29 +79,36 @@ static const char *help[] = {
     "opcodelist"
 };
 
-void init();
+int STRCMP(char *str_cmp);
+int get_command(char *buffer);
+void add_history(char *command);
 
-void Hash_insert();
-void Link_insert();
+void init( Hash * ,  Shell_Memory *);
+
+int Hash_find( Hash *, char *);
+
+void Hash_insert( Hash *, int , char *mnemonic);
+void Link_insert(Lnode *head );
 
 void print_help();
 void print_dir();
 void print_history();
+void print_opcode();
 
-void dump();
+void command_dump();
 //void dump(int start);
 //void dump(int start, int end);
 
-void edit(int address, int value);
+void command_edit(char *memory, int address, int value);
 
-void fill(int start, int end, int value);
+void command_fill(char *memory, int start, int end, int value);
 
-void reset();
+void command_reset(char *memory);
 
 void process_quit();
 
-void opcode();
+void command_opcode( Hash *);
 
-void main_process();
+void main_process(char *buffer);
 
 #endif

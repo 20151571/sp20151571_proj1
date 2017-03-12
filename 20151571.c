@@ -6,6 +6,7 @@ int main(void){
     while(1){
         printf("sicsim> ");
         fgets(buffer, Max_len, stdin);
+        main_process(buffer);
     }
     return 0;
 }
