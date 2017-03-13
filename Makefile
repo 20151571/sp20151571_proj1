@@ -1,18 +1,18 @@
-.SUFFIXES :	.c .o
-
-OBJECTS = 20151571.o parkunsang.o
-SRCS = 20151571.c parkunsang.c
-
 CC = gcc
-CFLAGS = -c -Wall -W
+CFLAGS = -Wall -W
+SRCS = 20151571.c parkunsang.c
+OBJECTS=$(SRCS:.c=.o)
 
-target = 20151571.out
+TARGET = 20151571.out
 
-$(TARGET) : $(OBJECTS)
-			$(CC) -o $(TARGET) $(OBJECTS)
+all: $(SRCS) $(TARGET)
+	
+$(TARGET): $(OBJECTS)
+	$(CC) $(OBJECTS) -o $@
+
+.c.o:
+		$(CC) -c $< -o $@ $(CFLAGS)
 
 clean:
-		rm $(OBJECTS) $(TARGET) core
+	rm $(OBJECTS) $(TARGET)
 
-parkunsang.o : 20151571.h parkunsang.c
-20151571.o : 20151571.h 20151571.c

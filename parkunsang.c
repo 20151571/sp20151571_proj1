@@ -1,5 +1,36 @@
 #include "20151571.h"
 
+const char *help_list[] = {
+    "h[elp]",
+    "d[ir]",
+    "q[uit]",
+    "hi[story]",
+    "du[mp] [start, end]",
+    "e[dit] address, value",
+    "f[ill] start, end, value",
+    "reset",
+    "opcode mnemonic",
+    "opcodelist"
+};
+
+const char *Help[] = {
+    "h",
+    "help",
+    "q",
+    "quit",
+    "hi",
+    "history",
+    "du",
+    "dump",
+    "e",
+    "edit",
+    "f",
+    "fill",
+    "reset",
+    "opcode mnemonic",
+    "opcodelist"
+};
+
 int STRCMP(char *str_cmp){
     int i;
     for ( i = 0; i < 16; ++i){
@@ -19,6 +50,22 @@ int get_command(char *buffer){
         token = strtok(NULL, sep);
     }
     return Error;
+}
+
+void add_histroy(History *head, char *command){
+    History ptr = *head;
+    History nptr;
+
+    nptr = malloc(sizeof(Linked_list));
+    nptr -> next = NULL;
+    strncpy(nptr->command, command, sizeof(nptr->command));
+
+    if(ptr != NULL){
+        for(; ptr-> next != NULL; ptr = ptr -> next);
+        ptr -> next = nptr;
+    }
+    else
+        *head = nptr;
 }
 
 void init( Hash *hash,  Shell_Memory *Sh_memory){
@@ -46,13 +93,13 @@ int Hash_find( Hash *hash, char *mnemonic){
     return opcode;
 }
 
-void Hash_insert( Hash *hash, int key, char *mnemonic){
+void Hash_insert(Hash *hash, int key, char *mnemonic){
     Hnode ptr;
     Hnode nptr;
     int Hash_size = hash->size;
 
 
-    nptr = malloc(sizeof(Hash_node));
+    nptr = malloc(sizeof(Hash_Node));
     strncpy ( nptr -> str_opcode, mnemonic, sizeof(nptr -> str_opcode) );
     nptr -> n_opcode = key;
     nptr -> next = NULL;
@@ -121,21 +168,26 @@ void print_history(History head){
     History ptr;
     int i = 1;
     for(ptr = head; ptr != NULL; ptr = ptr -> next)
-        printf("%-5d %s\n", i++, ptr->data);
+        printf("%-5d %s\n", i++, ptr->command);
 }
 
-void print_memory(Shell_Memory Sh_memory, int start, int end){
+void print_opcode(Hash *hash){
+    
+}
+
+int print_memory(Shell_Memory *Sh_memory, int start, int end){
     int str_hex = start / 16 * 16,
         end_hex = end / 16 * 16;
     int i, j;
-    char *memory = Sh_memory.memory;
+    char *memory = Sh_memory->memory;
 
-    if(start <= end && end <= Sh_memory.max_address){
-        for ( i = str_hex; i <= end; i += 16){
+    if(start <= end && start >= 0){
+        end = end <= Sh_memory->max_address ? end : Sh_memory->max_address ;
+
+        for ( i = str_hex; i <= end_hex; i += 16){
             printf("%5x ", i);
-            for(j = 0; j < 16; ++j){
+            for(j = 0; j < 16 && i + j <= end; ++j)
                 printf("%2x ", memory[i+j]);
-            }    
             printf("; ");
 
             for(j = 0; j < 16; ++j){
@@ -146,14 +198,15 @@ void print_memory(Shell_Memory Sh_memory, int start, int end){
                     else
                         printf(".");
                 }
+                else
+                    printf(".");
             }
             puts("");
         }
+        return 1;
     }
-
-    else{
-
-    }
+    else
+        return -1;
 }
 
 void command_dump(){
@@ -161,20 +214,31 @@ void command_dump(){
     
 }
 
-void command_edit(char *memory, int address, int value){
-    memory[address] = value;
-}
-
-void command_fill(char *memory, int start, int end, int value){
-    int i;
-    if(start <= end){
-        for(i = start; i <= end; ++i)
-            memory[i] = value;
+int command_edit(Shell_Memory *Sh_memory, int address, int value){
+    if( 0 <= address && address <= Sh_memory->max_address){
+        Sh_memory->memory[address] = value;
+        return 1;
     }
+    return -1;
 }
 
-void command_reset(char *memory){
-    memset(memory, 0, sizeof(memory));
+int command_fill(Shell_Memory *Sh_memory, int start, int end, int value){
+    int i;
+   
+    if(start >= 0 && start <= end){
+        end = end <= Sh_memory->max_address ? end : Sh_memory->max_address;
+        for(i = start; i <= end; ++i)
+            Sh_memory -> memory[i] = value;
+        return 1;
+    }
+    return -1;
+}
+
+void command_reset(Shell_Memory *Memory){
+    char *memory = Memory -> memory;
+    int i;
+    for ( i = 0; i < Memory -> max_address; ++i )
+        memory[i] = 0;
 }
 
 void process_quit(){
@@ -205,18 +269,37 @@ void command_opcode( Hash *hash){
     fclose(fp);
 }
 
+int command_check(char *user_str, int *address, int *start, int *end, int *value){
+    char sep[] = " \t";
+    char *token;
+    int i, command_num = -1, len = 1;
+
+    token = strtok(user_str, sep);
+    command_num = get_command(token);
+    
+    while ( token != NULL ){
+        printf("%s\n", token);
+        token = strtok(NULL, sep);
+        len++;
+    }
+
+    if ( len > 2)
+        return -1;
+    
+}
 
 void main_process(char *buffer){
     enum COMMAND command;
-    int command_num;
+    int command_num, Error_code;
+    int address, value, start, end;
     Shell_Memory Memory;
     Lnode head = NULL;
     Hash hash;
-
+    History Hhead;
     init(&hash, &Memory);
     
-    command_num = get_command(buffer);
-    if(command_num != Error){
+    command_num = command_check(buffer, &address, &start, &end, &value);
+    if(command_num != -1){
         //add_history();
         switch(command_num){
             case help:
@@ -232,7 +315,7 @@ void main_process(char *buffer){
                 break;
 
             case history:
-                print_histroy();
+                print_history(Hhead);
                 break;
 
             case dump:
@@ -241,15 +324,15 @@ void main_process(char *buffer){
 
 
             case edit:
-                //command_edit(Hash.memory, );
+                Error_code = command_edit(&Memory, address, value);
                 break;
 
             case Fill:
-                //comamnd_fill();
+                Error_code = command_fill(&Memory, start, end, value);
                 break;
 
             case Reset:
-                //command_reset();
+                command_reset( &Memory );
                 break;
 
             case opcode:
@@ -257,7 +340,7 @@ void main_process(char *buffer){
                 break;
 
             case opcodelist:
-                print_opcode();
+                print_opcode(&hash);
                 break;
         }
     }
