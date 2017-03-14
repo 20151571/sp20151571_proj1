@@ -31,7 +31,9 @@ const char *Help[] = {
     "opcodelist"
 };
 
-int STRCMP(char *str_cmp){
+char *instruction[5];
+
+int command_find(char *str_cmp){
     int i;
     for ( i = 0; i < 16; ++i){
         if ( strcmp(Help[i], str_cmp) == 0)
@@ -45,12 +47,35 @@ int get_command(char *buffer){
     char *token = strtok(buffer, sep);
     int command_num;
     while(token != NULL){
-        if ( ( command_num = STRCMP(token) ) != -1 )
+        if ( ( command_num = command_find(token) ) != -1 )
             return command_num / 2;
         token = strtok(NULL, sep);
     }
     return Error;
 }
+
+void get_opcode(Hash *hash){
+    FILE *fp;
+    char buffer[256];
+    int n_opcode;
+    char str_opcode[30];
+    char code[30];
+
+    fp = fopen("opcode.txt", "r");
+    if ( fp == NULL){
+        printf("FILE OPEN ERROR\n");
+        return;
+    }
+
+    while ( fgets(buffer, sizeof(buffer), fp) != NULL ){
+        sscanf(buffer, "%x %s %s", &n_opcode, str_opcode, code );
+        Hash_insert(hash, n_opcode, str_opcode);
+    }
+
+    fclose(fp);
+}
+
+
 
 void add_histroy(History *head, char *command){
     History ptr = *head;
@@ -78,6 +103,7 @@ void init( Hash *hash,  Shell_Memory *Sh_memory){
     Sh_memory->last_address = 0;
     Sh_memory->max_address = 1048575;
     memset(Sh_memory->memory , 0 , sizeof(Sh_memory->memory));
+    get_opcode(hash);
 }
 
 int Hash_find( Hash *hash, char *mnemonic){
@@ -158,7 +184,7 @@ void print_dir(){
                 (buf.st_mode & S_IXGRP) ||
                 (buf.st_mode & S_IXOTH) )
             printf("*");
-        puts("");
+        printf("\t");
     }
     closedir(dirp);
 }
@@ -249,43 +275,32 @@ void process_quit(){
  */
 
 void command_opcode( Hash *hash){
-    FILE *fp;
-    char buffer[256];
-    int n_opcode;
-    char str_opcode[30];
-    char code[30];
 
-    fp = fopen("opcode.txt", "r");
-    if ( fp == NULL){
-        printf("FILE OPEN ERROR\n");
-        return;
-    }
-    
-    while ( fgets(buffer, sizeof(buffer), fp) != NULL ){
-        sscanf(buffer, "%x %s %s", &n_opcode, str_opcode, code );
-        Hash_insert(hash, n_opcode, str_opcode);
-    }
-    
-    fclose(fp);
 }
 
 int command_check(char *user_str, int *address, int *start, int *end, int *value){
     char sep[] = " \t";
     char *token;
-    int i, command_num = -1, len = 1;
+    int i = 0, command_num = -1, len = 1;
 
     token = strtok(user_str, sep);
-    command_num = get_command(token);
+    command_num = command_find(token);
+    if(command_num == Error)
+        return -1;
     
     while ( token != NULL ){
+        if(len > 2)
+            return -1;
+        instruction[i] = token;
         printf("%s\n", token);
         token = strtok(NULL, sep);
         len++;
     }
-
-    if ( len > 2)
-        return -1;
     
+    for( i = 0; i < len; ++i)
+        printf("%s\n", instruction[i]);
+
+    return 0;
 }
 
 void main_process(char *buffer){
@@ -296,9 +311,17 @@ void main_process(char *buffer){
     Lnode head = NULL;
     Hash hash;
     History Hhead;
+
+    fprintf(stderr , "Error1\n");
+
     init(&hash, &Memory);
-    
+
+    fprintf(stderr, "Error2\n");
+
     command_num = command_check(buffer, &address, &start, &end, &value);
+
+    fprintf(stderr, "Error3\n");
+
     if(command_num != -1){
         //add_history();
         switch(command_num){
@@ -336,7 +359,7 @@ void main_process(char *buffer){
                 break;
 
             case opcode:
-                command_opcode(&hash);
+                //command_opcode(&hash);
                 break;
 
             case opcodelist:
