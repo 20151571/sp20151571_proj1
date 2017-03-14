@@ -39,7 +39,6 @@ typedef struct HASH_Linked_List{
     Hnode next;
 }Hash_Node;
 
-
 typedef struct MEMORY{
     char memory[1048576];
     int last_address;
@@ -48,35 +47,35 @@ typedef struct MEMORY{
 
 int command_find(char *str_cmp);
 int get_command(char *buffer);
-void add_history(History *head, char *command);
+void add_history(char *command);
 
-void init( Hash * ,  Shell_Memory *);
+void init();
 
-int Hash_find( Hash *, char *);
+int Hash_find(char *);
 
-void Hash_insert( Hash *, int , char *mnemonic);
-void Link_insert(Lnode *head );
+void Hash_insert(int , char *mnemonic);
+void Link_insert();
 
 void print_help();
 void print_dir();
-void print_history(History Hhead);
-void print_opcode(Hash *);
-int print_memory(Shell_Memory *Sh_memory, int , int );
+void print_history();
+void print_opcodelist();
+int print_memory(int , int );
 
 void command_dump();
 //void dump(int start);
 //void dump(int start, int end);
 
-int command_edit(Shell_Memory *Sh_memory, int address, int value);
+int command_edit(int address, int value);
 
-int command_fill(Shell_Memory *Sh_memory, int start, int end, int value);
+int command_fill(int start, int end, int value);
 
-void command_reset(Shell_Memory *Memory);
+void command_reset();
 
 
 void process_quit();
 
-void command_opcode( Hash *);
+void command_opcode();
 
 int command_check(char *buffer, int *address, int *start, int *end, int *value);
 
