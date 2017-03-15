@@ -273,7 +273,7 @@ void command_dump(){
     int start_address = ( Sh_memory.last_address + 1 ) % 
         ( Sh_memory.max_address + 1 ) ,
         end_address = min ( start_address + 159, Sh_memory.max_address ); 
-    char *Error1, *Error2;
+    char *Error1 = '\0', *Error2 = '\0';
 
     for ( int i = 0; instruction[i] != NULL; ++i, len++);
     
@@ -281,11 +281,16 @@ void command_dump(){
 
     if ( len == 2){
         start_address = (int)strtol(instruction[1], &Error1, 16);
-        if ( start_address > Sh_memory.max_address || *Error1 != '\0'){
+        if(*Error1 == ','){
+            end_address = (int)strtol(Error1+1, &Error2, 16);
+            Error1 = '\0';
+        }
+        if ( start_address > Sh_memory.max_address ||
+               start_address > end_address || *Error2 != '\0'){
             printf("Address Error!\nStart_address exceeds max_address\n");
             return;
         }
-        end_address = min ( start_address + 159, Sh_memory.last_address );
+        end_address = min ( end_address, Sh_memory.last_address );
     }
 
     else if ( len == 3){
