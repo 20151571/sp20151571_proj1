@@ -233,14 +233,19 @@ int print_memory(int start, int end){
     char *memory = Sh_memory.memory;
     
     printf ( "start address is : %d\nend address is %d\n", start, end);
-    
+    printf("hexcode : %d %d\n", str_hex, end_hex); 
+
     if(start <= end && start >= 0){
         end = end <= Sh_memory.max_address ? end : Sh_memory.max_address ;
         Sh_memory.last_address = end;
         for ( i = str_hex; i <= end_hex; i += 16){
-            printf("%05x ", i);
-            for(j = 0; j < 16 && start <= i + j && i + j <= end; ++j)
-                printf("%02x ", memory[i+j]);
+            printf("%05X ", i);
+            for(j = 0; j < 16; ++j){
+                if(start <= i + j && i + j <= end)
+                    printf("%02X ", memory[i+j]);
+                else
+                    printf("   ");
+            }
             printf("; ");
 
             for(j = 0; j < 16; ++j){
@@ -276,20 +281,28 @@ void command_dump(){
 
     if ( len == 2){
         start_address = (int)strtol(instruction[1], &Error1, 16);
-        if ( start_address > Sh_memory.max_address || Error1 != '\0'){
+        if ( start_address > Sh_memory.max_address || *Error1 != '\0'){
             printf("Address Error!\nStart_address exceeds max_address\n");
             return;
         }
-        end_address = min ( end_address, Sh_memory.last_address );
+        end_address = min ( start_address + 159, Sh_memory.last_address );
     }
 
     else if ( len == 3){
-        if ( instruction[1][strlen(instruction[1]-1)] == ',' )
+        if ( instruction[1][ strlen(instruction[1]) - 1] == ',' )
             instruction[1][ strlen(instruction[1]) -1 ] = '\0';
+
+        else if( instruction[2][0] == ',' ){
+            for ( int i = 0;  i < strlen(instruction[2]); ++i)
+                instruction[2][i] = instruction[2][i+1];
+        }
+
         start_address = (int)strtol(instruction[1], &Error1, 16);
         end_address = (int)strtol(instruction[2], &Error2, 16);
         
-        if ( Error1 != '\0' || Error2 != '\0' || start_address > end_address ||
+        printf("address : %d %d\n", start_address, end_address);
+
+        if ( *Error1 != '\0' || *Error2 != '\0' || start_address > end_address ||
                 start_address > Sh_memory.max_address ){
             printf("Address Error!\nStart_address exceeds max_address\n");
             return;
@@ -299,17 +312,18 @@ void command_dump(){
     else if ( len == 4){
         start_address = (int)strtol(instruction[1], &Error1, 16);
         end_address = (int)strtol(instruction[3], &Error2, 16);
-        printf("instruction[2] : %s\ncompare result is : %d\n", instruction[2],
-                strcmp(instruction[2], ","));
-
-        printf("%d %d\n", start_address, end_address);
         
-        if ( Error1 != '\0' || Error2 != '\0' || 
+        if ( *Error1 != '\0' || *Error2 != '\0' || 
                 strcmp(instruction[2], ",") != 0 || start_address > end_address ||
                 start_address > Sh_memory.max_address ){
             printf("Address Error!\nStart_address exceeds max_address\n");
             return;
         }
+    }
+
+    else if( len > 4){
+        printf("Address Error!\nStart_address exceeds max_address\n");
+        return;
     }
 
     print_memory ( start_address, end_address );
@@ -353,15 +367,14 @@ void process_quit(){
         free(lptr);
     }
 
-    for ( int i = 0; hash_table.size; ++i ){
+    for ( int i = 0; i < hash_table.size; ++i ){
         for ( ; Hhead != NULL; ){
             hptr = Hhead;
             Hhead = Hhead->next;
             free(hptr);
         }
     }
-
-    
+    exit(0);
 }
 /*
  *할당된 메모리 공간을 모두 해제해준다.
@@ -401,7 +414,7 @@ int command_check(char *user_str, int *address, int *start, int *end, int *value
         printf("%s\n", instruction[i]);
     puts("------------------------");
 
-    if ( ( 0 <= command_num && command_num <= 8 ) || command_num ==  14 
+    if ( ( 0 <= command_num && command_num <= 7 ) || command_num ==  14 
             || command_num == 16 )
         if ( len > 1 )
             return -1;
