@@ -33,14 +33,16 @@ const char *Help[] = {
     "opcodelist"
 };
 
-char *instruction[5];
-
+char *instruction[10];
+char str_copy[256];
 Hash hash_table;
 History Hhead = NULL;
 Lnode Lhead = NULL;
 Shell_Memory Sh_memory;
 
-
+int min(int a, int b){
+    return a < b ? a : b;
+}
 
 int command_find(char *str_cmp){
     int i;
@@ -55,7 +57,7 @@ int command_find(char *str_cmp){
 }
 
 int get_command(char *buffer){
-    char sep[] = " ,\t";
+    char sep[] = " \t";
     char *token = strtok(buffer, sep);
     int command_num;
     while(token != NULL){
@@ -112,7 +114,7 @@ void init(){
         hash_table.Table[i] = NULL;
     }
     
-    Sh_memory.last_address = 0;
+    Sh_memory.last_address = 1048575;
     Sh_memory.max_address = 1048575;
     for( i = 0; i < Sh_memory.max_address; ++i)
         Sh_memory.memory[i] = 0;
@@ -229,14 +231,16 @@ int print_memory(int start, int end){
         end_hex = end / 16 * 16;
     int i, j;
     char *memory = Sh_memory.memory;
-
+    
+    printf ( "start address is : %d\nend address is %d\n", start, end);
+    
     if(start <= end && start >= 0){
         end = end <= Sh_memory.max_address ? end : Sh_memory.max_address ;
-
+        Sh_memory.last_address = end;
         for ( i = str_hex; i <= end_hex; i += 16){
-            printf("%5x ", i);
-            for(j = 0; j < 16 && i + j <= end; ++j)
-                printf("%2x ", memory[i+j]);
+            printf("%05x ", i);
+            for(j = 0; j < 16 && start <= i + j && i + j <= end; ++j)
+                printf("%02x ", memory[i+j]);
             printf("; ");
 
             for(j = 0; j < 16; ++j){
@@ -258,9 +262,57 @@ int print_memory(int start, int end){
         return -1;
 }
 
+
 void command_dump(){
-    int i, j;
+    int len = 0;
+    int start_address = ( Sh_memory.last_address + 1 ) % 
+        ( Sh_memory.max_address + 1 ) ,
+        end_address = min ( start_address + 159, Sh_memory.max_address ); 
+    char *Error1, *Error2;
+
+    for ( int i = 0; instruction[i] != NULL; ++i, len++);
     
+    printf("dump len is : %d\n", len);
+
+    if ( len == 2){
+        start_address = (int)strtol(instruction[1], &Error1, 16);
+        if ( start_address > Sh_memory.max_address || Error1 != '\0'){
+            printf("Address Error!\nStart_address exceeds max_address\n");
+            return;
+        }
+        end_address = min ( end_address, Sh_memory.last_address );
+    }
+
+    else if ( len == 3){
+        if ( instruction[1][strlen(instruction[1]-1)] == ',' )
+            instruction[1][ strlen(instruction[1]) -1 ] = '\0';
+        start_address = (int)strtol(instruction[1], &Error1, 16);
+        end_address = (int)strtol(instruction[2], &Error2, 16);
+        
+        if ( Error1 != '\0' || Error2 != '\0' || start_address > end_address ||
+                start_address > Sh_memory.max_address ){
+            printf("Address Error!\nStart_address exceeds max_address\n");
+            return;
+        }
+    }
+
+    else if ( len == 4){
+        start_address = (int)strtol(instruction[1], &Error1, 16);
+        end_address = (int)strtol(instruction[3], &Error2, 16);
+        printf("instruction[2] : %s\ncompare result is : %d\n", instruction[2],
+                strcmp(instruction[2], ","));
+
+        printf("%d %d\n", start_address, end_address);
+        
+        if ( Error1 != '\0' || Error2 != '\0' || 
+                strcmp(instruction[2], ",") != 0 || start_address > end_address ||
+                start_address > Sh_memory.max_address ){
+            printf("Address Error!\nStart_address exceeds max_address\n");
+            return;
+        }
+    }
+
+    print_memory ( start_address, end_address );
 }
 
 int command_edit( int address, int value){
@@ -292,6 +344,24 @@ void command_reset(){
 
 void process_quit(){
     printf("hihi\n");
+    Lnode lptr;
+    History hptr;
+
+    for ( ; Lhead != NULL; ){
+        lptr = Lhead;
+        Lhead = Lhead->next;
+        free(lptr);
+    }
+
+    for ( int i = 0; hash_table.size; ++i ){
+        for ( ; Hhead != NULL; ){
+            hptr = Hhead;
+            Hhead = Hhead->next;
+            free(hptr);
+        }
+    }
+
+    
 }
 /*
  *할당된 메모리 공간을 모두 해제해준다.
@@ -316,13 +386,25 @@ int command_check(char *user_str, int *address, int *start, int *end, int *value
         return -1;
     
     while ( token != NULL ){
-        len++;
-        if(len > 2)
+        if(i > 4)
             return -1;
+        len++;
         instruction[i++] = token;
         token = strtok(NULL, sep);
     }
-    command_num = command_find(instruction[0]);
+
+    instruction[i] = NULL;
+
+
+    printf("Instruction set is\n");
+    for( i = 0; instruction[i] != NULL; ++i)
+        printf("%s\n", instruction[i]);
+    puts("------------------------");
+
+    if ( ( 0 <= command_num && command_num <= 8 ) || command_num ==  14 
+            || command_num == 16 )
+        if ( len > 1 )
+            return -1;
     if( 0 <= command_num && command_num <= 11)
         return command_num / 2;
     else if ( command_num > 11)
@@ -336,11 +418,13 @@ void main_process(char *buffer){
     int command_num, Error_code;
     int address, value, start, end;
     char *mnemonic;
-    command_num = command_check(buffer, &address, &start, &end, &value);
-    
+    char bcopy[256];
+
+    strncpy( str_copy, buffer, sizeof(str_copy));
+    command_num = command_check(str_copy, &address, &start, &end, &value);
+
     printf("command_num is : %d\n", command_num);
     if(command_num != -1){
-        //add_history();
         switch(command_num){
             case help:
                 print_help();
@@ -384,4 +468,7 @@ void main_process(char *buffer){
                 break;
         }
     }
+
+    else
+        printf("There is no command\nplease rewrite command\n");
 }

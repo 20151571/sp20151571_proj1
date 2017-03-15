@@ -45,6 +45,8 @@ typedef struct MEMORY{
     int max_address;
 }Shell_Memory;
 
+int min(int a, int b);
+
 int command_find(char *str_cmp);
 int get_command(char *buffer);
 void add_history(char *command);
