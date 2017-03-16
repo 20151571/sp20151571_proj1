@@ -46,7 +46,8 @@ typedef struct MEMORY{
 }Shell_Memory;
 
 int min(int a, int b);
-
+void str_replace(char *, const char *, const char *);
+int get_values(char *);
 int command_find(char *str_cmp);
 int get_command(char *buffer);
 void add_history(char *command);
@@ -65,22 +66,12 @@ void print_opcodelist();
 int print_memory(int , int );
 
 void command_dump();
-//void dump(int start);
-//void dump(int start, int end);
-
-int command_edit(int address, int value);
-
-int command_fill(int start, int end, int value);
-
+int command_edit(char *buffer);
+int command_fill(char *buffer);
 void command_reset();
-
-
-void process_quit();
-
 void command_opcode();
-
-int command_check(char *buffer, int *address, int *start, int *end, int *value);
-
+int command_check(char *buffer);
+void process_quit();
 void main_process(char *buffer);
 
 #endif

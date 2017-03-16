@@ -33,6 +33,7 @@ const char *Help[] = {
     "opcodelist"
 };
 
+int values[5];
 char *instruction[10];
 char str_copy[256];
 Hash hash_table;
@@ -42,6 +43,55 @@ Shell_Memory Sh_memory;
 
 int min(int a, int b){
     return a < b ? a : b;
+}
+
+void str_replace(char *target, const char *orig, const char *repl){
+    char buffer[256] = { 0 };
+    char *insert_point = &buffer[0];
+    const char *tmp = target;
+    size_t orig_len = strlen(orig);
+    size_t repl_len = strlen(repl);
+    while (1) {
+        const char *p = strstr(tmp, orig);
+        if (p == NULL) {
+            strcpy(insert_point, tmp);
+            break;
+        }
+        memcpy(insert_point, tmp, p - tmp);
+        insert_point += p - tmp;
+        memcpy(insert_point, repl, repl_len);
+        insert_point += repl_len;
+        tmp = p + orig_len;
+    }
+    strcpy(target, buffer);
+}
+
+int get_values(char *buffer){
+    char *token;
+    char *error;
+    char sep[] = " \t";
+    int idx= 0, flag = 1;
+    int value;
+    token = strtok(buffer, sep);
+    while(token != NULL){
+        token = strtok(NULL, sep);
+        if ( token == NULL)
+            break;
+        if ( strcmp( token , "," ) == 0 ){
+            if ( flag )
+                return -1;
+            else
+                flag = 1;
+        }
+        else{
+            value = (int)strtol(token, &error, 16);
+            if( *error != '\0')
+                return -1;
+            values[idx++] = value;
+            flag = 0;
+        }
+    }
+    return 1;
 }
 
 int command_find(char *str_cmp){
@@ -232,9 +282,6 @@ int print_memory(int start, int end){
     int i, j;
     char *memory = Sh_memory.memory;
     
-    printf ( "start address is : %d\nend address is %d\n", start, end);
-    printf("hexcode : %d %d\n", str_hex, end_hex); 
-
     if(start <= end && start >= 0){
         end = end <= Sh_memory.max_address ? end : Sh_memory.max_address ;
         Sh_memory.last_address = end;
@@ -277,8 +324,6 @@ void command_dump(){
 
     for ( int i = 0; instruction[i] != NULL; ++i, len++);
     
-    printf("dump len is : %d\n", len);
-
     if ( len == 2){
         start_address = (int)strtol(instruction[1], &Error1, 16);
         if(*Error1 == ','){
@@ -305,7 +350,6 @@ void command_dump(){
         start_address = (int)strtol(instruction[1], &Error1, 16);
         end_address = (int)strtol(instruction[2], &Error2, 16);
         
-        printf("address : %d %d\n", start_address, end_address);
 
         if ( *Error1 != '\0' || *Error2 != '\0' || start_address > end_address ||
                 start_address > Sh_memory.max_address ){
@@ -330,25 +374,66 @@ void command_dump(){
         printf("Address Error!\nStart_address exceeds max_address\n");
         return;
     }
-
+    Sh_memory.last_address = end_address;
     print_memory ( start_address, end_address );
 }
 
-int command_edit( int address, int value){
+int command_edit(char *buffer){
+    int address, value;
+    int len = 0, num = 0, flag = 1;
+    char *Error1 ='\0', *Error2 = '\0';
+    char *token;
+	char tmp[256];
+    char sep[] = " \t";
+	strncpy(tmp, buffer, sizeof(tmp));
+
+	for ( int i = 0; i < strlen(tmp); ++i)
+        if ( tmp[i] == ',')
+            num++;
+    if(num != 1)
+        return -1;
+
+    str_replace(tmp, ",",  " , ");
+    if( get_values(tmp) == -1)
+        return -1;
+
+    address = values[0]; value = values[1];
+    
     if( 0 <= address && address <= Sh_memory.max_address){
         Sh_memory.memory[address] = value;
+        print_memory(address, address);
         return 1;
     }
     return -1;
 }
 
-int command_fill( int start, int end, int value){
-    int i;
-   
-    if(start >= 0 && start <= end){
-        end = end <= Sh_memory.max_address ? end : Sh_memory.max_address;
-        for(i = start; i <= end; ++i)
+int command_fill(char *buffer){
+    int num = 0, flag = 1;
+    int arr[5];
+    int start, end, value;
+    char *token, *error;
+    char sep[] = " \t";
+	char tmp[256];
+
+	strncpy(tmp, buffer, sizeof(tmp));
+
+    for( int i = 0; i < strlen(buffer); ++i)
+        if( buffer[i] == ',')
+            num++;
+    if(num != 2)
+        return -1;
+
+	str_replace(tmp, ",", " , ");
+
+    if ( get_values(tmp) == - 1)
+        return -1;
+
+    start = values[0], end = values[1], value = values[2];
+
+    if(start >= 0 && start <= end && end <= Sh_memory.max_address){
+        for(int i = start; i <= end; ++i)
             Sh_memory.memory[i] = value;
+        print_memory(start, end);
         return 1;
     }
     return -1;
@@ -359,6 +444,7 @@ void command_reset(){
     int i;
     for ( i = 0; i < Sh_memory.max_address; ++i )
         memory[i] = 0;
+    print_memory(0, 160);
 }
 
 void process_quit(){
@@ -389,7 +475,7 @@ void command_opcode( ){
 
 }
 
-int command_check(char *user_str, int *address, int *start, int *end, int *value){
+int command_check(char *user_str){
     char sep[] = " \t";
     char *token;
     int i = 0, command_num = -1, len = 0;
@@ -399,34 +485,27 @@ int command_check(char *user_str, int *address, int *start, int *end, int *value
         return -1;
 
     command_num = command_find(token);
-
     if(command_num == -1)
         return -1;
     
     while ( token != NULL ){
-        if(i > 4)
+        if(i > 6)
             return -1;
         len++;
         instruction[i++] = token;
         token = strtok(NULL, sep);
     }
-
     instruction[i] = NULL;
-
-
-    printf("Instruction set is\n");
-    for( i = 0; instruction[i] != NULL; ++i)
-        printf("%s\n", instruction[i]);
-    puts("------------------------");
-
+    
     if ( ( 0 <= command_num && command_num <= 7 ) || command_num ==  14 
             || command_num == 16 )
         if ( len > 1 )
             return -1;
-    if( 0 <= command_num && command_num <= 11)
+    
+    if( 0 <= command_num && command_num <= 13)
         return command_num / 2;
-    else if ( command_num > 11)
-        return command_num - 5;
+    else if ( command_num > 13)
+        return command_num - 6;
     
     return -1;
 }
@@ -434,12 +513,10 @@ int command_check(char *user_str, int *address, int *start, int *end, int *value
 void main_process(char *buffer){
     enum COMMAND command;
     int command_num, Error_code;
-    int address, value, start, end;
     char *mnemonic;
-    char bcopy[256];
 
     strncpy( str_copy, buffer, sizeof(str_copy));
-    command_num = command_check(str_copy, &address, &start, &end, &value);
+    command_num = command_check(str_copy);
 
     printf("command_num is : %d\n", command_num);
     if(command_num != -1){
@@ -466,11 +543,13 @@ void main_process(char *buffer){
 
 
             case edit:
-                Error_code = command_edit(address, value);
+                strncpy( str_copy, buffer, sizeof(str_copy));
+                Error_code = command_edit(str_copy);
                 break;
 
             case Fill:
-                Error_code = command_fill(start, end, value);
+                strncpy( str_copy, buffer, sizeof(str_copy));
+                Error_code = command_fill(str_copy);
                 break;
 
             case Reset:
@@ -478,7 +557,7 @@ void main_process(char *buffer){
                 break;
 
             case opcode:
-                //command_opcode(&hash);
+                command_opcode();
                 break;
 
             case opcodelist:
