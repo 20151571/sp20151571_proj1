@@ -99,7 +99,7 @@ int get_values(char *buffer){
             flag = 0;
         }
     }
-    return 1;
+    return idx;
 }
 
 /* 입력한 명령어가존재하는지 찾고 몇번째와 일치하는지 알려주는 함수
@@ -350,73 +350,36 @@ int print_memory(int start, int end){
  * dump start. end만 입력한 경우 start부터 end까지 출력해준다.
  * start. end가 16진수가 아니거나 범위를 넘어가는 경우는 출력하지 않고 에러처리한다.
  */
-void command_dump(){
+int command_dump(char *buffer){
     int len = 0;
     int start_address = ( Sh_memory.last_address + 1 ) % 
         ( Sh_memory.max_address + 1 ) ,
         end_address = min ( start_address + 159, Sh_memory.max_address ); 
     // start_address와 end_address 기본 dump인 경우를 위한  초기화 부분.
     char *Error1 = '\0', *Error2 = '\0';
-
-    for ( int i = 0; instruction[i] != NULL; ++i, len++); // 명령어에 인자 개수 체크
+    char tmp[256];
+    strncpy(tmp, buffer, sizeof(tmp)); 
     
-    if ( len == 2){ // dump start인 경우 거나 dump start,end인 경우
-        start_address = (int)strtol(instruction[1], &Error1, 16);
-        if(*Error1 == ','){
-            end_address = (int)strtol(Error1+1, &Error2, 16);
-            Error1 = '\0';
-        }
-        if ( start_address > Sh_memory.max_address ||
-               start_address > end_address || *Error2 != '\0'){
-            // boundary check와 16진수가 입력된것인지 체크
-            printf("Address Error!\nStart_address exceeds max_address\n");
-            return;
-        }
-        end_address = min ( end_address, Sh_memory.last_address );
-    }
+    str_replace(tmp, "," , " , ");
 
-    else if ( len == 3){ // dump start, end와 dump start ,end인 경우
-        if ( instruction[1][ strlen(instruction[1]) - 1] == ',' )
-            instruction[1][ strlen(instruction[1]) -1 ] = '\0';
-        // dump start, end인 경우
+    if ( ( len = get_values(tmp) ) == -1)
+        return -1;
+    
+    if ( len == 1 )
+        start_address = values[0], end_address = min ( start_address + 159, Sh_memory.max_address );
 
-        else if( instruction[2][0] == ',' ){
-            for ( int i = 0;  i < (int)strlen(instruction[2]); ++i)
-                instruction[2][i] = instruction[2][i+1];
-        }
-        // dump start ,end 인 경우
+    else if ( len == 2 )
+        start_address = values[1], end_address = values[2];
+    
+    else if ( len > 2)
+        return -1;
 
-        start_address = (int)strtol(instruction[1], &Error1, 16);
-        end_address = (int)strtol(instruction[2], &Error2, 16);
-        
-
-        if ( *Error1 != '\0' || *Error2 != '\0' || start_address > end_address ||
-                start_address > Sh_memory.max_address ){
-            // boundary check와 16진수가 아닌 경우.
-            printf("Address Error!\nStart_address exceeds max_address\n");
-            return;
-        }
-    }
-
-    else if ( len == 4){ // dump start , end인 경우
-        start_address = (int)strtol(instruction[1], &Error1, 16);
-        end_address = (int)strtol(instruction[3], &Error2, 16);
-        
-        if ( *Error1 != '\0' || *Error2 != '\0' || 
-                strcmp(instruction[2], ",") != 0 || start_address > end_address ||
-                start_address > Sh_memory.max_address ){
-            //boundary check와 16진수가 아닌 경
-            printf("Address Error!\nStart_address exceeds max_address\n");
-            return;
-        }
-    }
-
-    else if( len > 4){ // error
-        printf("Address Error!\nStart_address exceeds max_address\n");
-        return;
-    }
+    if ( start_address > Sh_memory.max_address ||
+            start_address > end_address)
+        return -1;
     Sh_memory.last_address = end_address;
     print_memory ( start_address, end_address );
+    return 1;
 }
 
 /* edit 명령어 처리해주는 함수
@@ -519,7 +482,7 @@ void process_quit(){
 /* opcode 명령어를 처리해주는 함수
  * 
  */
-void command_opcode( ){
+int command_opcode(char *mnemonic ){
 
 }
 
@@ -566,11 +529,14 @@ int command_check(char *user_str){
  */
 void main_process(char *buffer){
     int command_num;
+    int error_check;
     strncpy( str_copy, buffer, sizeof(str_copy));
     command_num = command_check(str_copy); // 명령어 존재하는지 확인
 
     //printf("command_num is : %d\n", command_num);
     if(command_num != -1){
+        strncpy(str_copy, buffer, sizeof(str_copy));
+        error_check = 1;
         switch(command_num){
             case help:
                 print_help();
@@ -589,17 +555,15 @@ void main_process(char *buffer){
                 break;
 
             case dump:
-                command_dump();
+                error_check = command_dump(str_copy);
                 break;
 
             case edit:
-                strncpy( str_copy, buffer, sizeof(str_copy));
-                command_edit(str_copy);
+                error_check = command_edit(str_copy);
                 break;
 
             case Fill:
-                strncpy( str_copy, buffer, sizeof(str_copy));
-                command_fill(str_copy);
+                error_check = command_fill(str_copy);
                 break;
 
             case Reset:
@@ -607,13 +571,15 @@ void main_process(char *buffer){
                 break;
 
             case opcode:
-                command_opcode();
+                error_check = command_opcode();
                 break;
 
             case opcodelist:
                 print_opcodelist();
                 break;
         }
+        if ( error_check )
+            add_history(buffer);
     }
 
     else
