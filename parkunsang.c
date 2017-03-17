@@ -37,9 +37,8 @@ int values[5]; // 입력한 명령어에서 value들을 저장하는 배열(addr
 char str_copy[256]; // string copy용 배열
 Hash hash_table; // hash_table 구조체
 History Hhead = NULL; // history를 linked_list로 구현한 head
-Lnode Lhead = NULL; // linked_list head
 Shell_Memory Sh_memory; // 메모리 정보를 담고 있는 구조체
-
+Lnode Lhead = NULL;
 // a ,b  값중 작은 값을 반환해준다.
 int min(int a, int b){
     return a < b ? a : b;
@@ -92,7 +91,6 @@ int get_values(char *buffer){
         }
         else{
             value = (int)strtol(token, &error, 16); // 16진수의 값을 10진수로 바꿈
-            printf("value : %d\n", value);
             if( *error != '\0') // 16진수가 아닌 경우 에러 처리
                 return -1;
             values[idx++] = value;
@@ -109,7 +107,6 @@ int get_values(char *buffer){
 int command_find(char *str_cmp){
     int i;
     int size = sizeof(Help) / sizeof(char *);
-    printf("command is %s\n", str_cmp);
     for ( i = 0; i < size; ++i)
         if ( strcmp(Help[i], str_cmp) == 0)
             return i;
@@ -206,26 +203,26 @@ int Hash_find(char *mnemonic){
 /* Hash에 mnemonic을 insert하는 함수
  * 적절한 key를 사용하여 insert한다(여기서는 key % hash_size를 이용한다)
  */
-void Hash_insert(int key, char *mnemonic){
+void Hash_insert(int n_opcode, char *mnemonic){
     Hnode ptr;
     Hnode nptr;
     int Hash_size = hash_table.size;
-    
+    int key = 0;
     nptr = malloc(sizeof(Hash_Node));
     strncpy ( nptr -> str_opcode, mnemonic, sizeof(nptr -> str_opcode) );
-    nptr -> n_opcode = key;
+
+    for( int i = 0; i < (int)strlen(mnemonic); ++i )
+        key += mnemonic[i];
+    nptr -> n_opcode = n_opcode;
     nptr -> next = NULL;
 
     key = key % Hash_size;
     ptr = hash_table.Table[key];
 
-    if(ptr != NULL){ // hash_table이 빈 경우
+    if(ptr != NULL)
         nptr -> next = ptr;
-        hash_table.Table[key] = nptr;
-    }
 
-    else
-        hash_table.Table[key] = nptr;
+    hash_table.Table[key] = nptr;
 }
 
 // linked_list insert 함수
@@ -294,7 +291,7 @@ void print_opcodelist(){
     for ( int i = 0; i < 20; ++i){
         printf("%d : ", i);
         for ( ptr = hash_table.Table[i]; ptr != NULL; ptr = ptr -> next){
-            printf("[%s,%d]", ptr->str_opcode, ptr->n_opcode);
+            printf("[%s,%X]", ptr->str_opcode, ptr->n_opcode);
             if(ptr -> next != NULL)
                 printf(" -> ");
         }
@@ -356,7 +353,6 @@ int command_dump(char *buffer){
         ( Sh_memory.max_address + 1 ) ,
         end_address = min ( start_address + 159, Sh_memory.max_address ); 
     // start_address와 end_address 기본 dump인 경우를 위한  초기화 부분.
-    char *Error1 = '\0', *Error2 = '\0';
     char tmp[256];
     for ( int i = 0; i  < (int)strlen(buffer); ++i )
         if ( buffer[i] == ',' )
@@ -490,8 +486,30 @@ void process_quit(){
 /* opcode 명령어를 처리해주는 함수
  * 
  */
-int command_opcode(char *mnemonic ){
+int command_opcode(char *buffer ){
+    char tmp[256];
+    int len = 0, n_opcode;
+    char sep[] = " \t";
+    char *token = NULL;
+    char *mnemonic;
+    strncpy(tmp, buffer, sizeof(tmp));
 
+    token = strtok(tmp, sep);
+    while( token != NULL){
+        token = strtok(NULL, sep);
+        if(token == NULL)
+            break;
+        mnemonic = token;
+        len++;
+    }
+    
+    if ( len != 1 )
+        return -1;
+    
+    if( ( n_opcode = Hash_find(mnemonic) )== -1)
+        return -1;
+    printf("opcode is %d\n", n_opcode);
+    return 1;
 }
 
 /* 입력한 명령어가 존재하는지 확인하는 함수
@@ -526,7 +544,7 @@ int command_check(char *user_str){
     if( 0 <= command_num && command_num <= 13)
         return command_num / 2; // du[mp] 같이 입력할 수 있는 경우
     else if ( command_num > 13)
-        return command_num - 6; // reset 같이 하나인 경우.
+        return command_num - 7; // reset 같이 하나인 경우.
     return -1; // error인 경우
 }
 
@@ -539,7 +557,6 @@ void main_process(char *buffer){
     strncpy( str_copy, buffer, sizeof(str_copy));
     command_num = command_check(str_copy); // 명령어 존재하는지 확인
 
-    //printf("command_num is : %d\n", command_num);
     if(command_num != -1){
         strncpy(str_copy, buffer, sizeof(str_copy));
         error_check = 1;
