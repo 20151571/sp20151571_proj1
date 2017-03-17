@@ -34,7 +34,6 @@ const char *Help[] = {
 };
 
 int values[5]; // 입력한 명령어에서 value들을 저장하는 배열(address, start, end 등등)
-char *instruction[10]; // 명령어를 space나 tab을 기준으로 tokenize 했을 때나오는 string을 저장하는 배열
 char str_copy[256]; // string copy용 배열
 Hash hash_table; // hash_table 구조체
 History Hhead = NULL; // history를 linked_list로 구현한 head
@@ -93,6 +92,7 @@ int get_values(char *buffer){
         }
         else{
             value = (int)strtol(token, &error, 16); // 16진수의 값을 10진수로 바꿈
+            printf("value : %d\n", value);
             if( *error != '\0') // 16진수가 아닌 경우 에러 처리
                 return -1;
             values[idx++] = value;
@@ -156,7 +156,7 @@ void get_opcode(){
 
 
 // history에 입력한 명령어를 linked_list tail에  추가하는 함수
-void add_histroy(char *command){
+void add_history(char *command){
     History ptr = Hhead;
     History nptr;
 
@@ -351,26 +351,34 @@ int print_memory(int start, int end){
  * start. end가 16진수가 아니거나 범위를 넘어가는 경우는 출력하지 않고 에러처리한다.
  */
 int command_dump(char *buffer){
-    int len = 0;
+    int len = 0, num = 0;
     int start_address = ( Sh_memory.last_address + 1 ) % 
         ( Sh_memory.max_address + 1 ) ,
         end_address = min ( start_address + 159, Sh_memory.max_address ); 
     // start_address와 end_address 기본 dump인 경우를 위한  초기화 부분.
     char *Error1 = '\0', *Error2 = '\0';
     char tmp[256];
-    strncpy(tmp, buffer, sizeof(tmp)); 
-    
-    str_replace(tmp, "," , " , ");
+    for ( int i = 0; i  < (int)strlen(buffer); ++i )
+        if ( buffer[i] == ',' )
+            num++;
 
+    strncpy(tmp, buffer, sizeof(tmp)); 
+    str_replace(tmp, "," , " , ");
     if ( ( len = get_values(tmp) ) == -1)
         return -1;
-    
-    if ( len == 1 )
-        start_address = values[0], end_address = min ( start_address + 159, Sh_memory.max_address );
+    printf("len : %d\n", len);
 
-    else if ( len == 2 )
+    if ( len == 1){
+        if( num != 0)
+            return -1;
+        start_address = values[0], end_address = min ( start_address + 159, Sh_memory.max_address );
+    }
+
+    else if ( len == 2){
+        if ( num != 1)
+            return -1;
         start_address = values[1], end_address = values[2];
-    
+    }
     else if ( len > 2)
         return -1;
 
@@ -507,10 +515,8 @@ int command_check(char *user_str){
         if(i > 6) // 이상한 명령어 입력해준경우 체크
             return -1;
         len++;
-        instruction[i++] = token; // 명령어 저장
         token = strtok(NULL, sep);
     }
-    instruction[i] = NULL;
     
     if ( ( 0 <= command_num && command_num <= 7 ) || command_num ==  14 
             || command_num == 16 )
@@ -571,14 +577,14 @@ void main_process(char *buffer){
                 break;
 
             case opcode:
-                error_check = command_opcode();
+                error_check = command_opcode(str_copy);
                 break;
 
             case opcodelist:
                 print_opcodelist();
                 break;
         }
-        if ( error_check )
+        if ( error_check == 1 )
             add_history(buffer);
     }
 
