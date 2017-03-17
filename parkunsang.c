@@ -29,7 +29,7 @@ const char *Help[] = {
     "f",
     "fill",
     "reset",
-    "opcode mnemonic",
+    "opcode",
     "opcodelist"
 };
 
@@ -311,7 +311,6 @@ int print_memory(int start, int end){
     
     if(start <= end && start >= 0){ // boundary check
         end = end <= Sh_memory.max_address ? end : Sh_memory.max_address ; // end boundary check
-        Sh_memory.last_address = end; // last_address update
         for ( i = str_hex; i <= end_hex; i += 16){
             printf("%05X ", i);
             for(j = 0; j < 16; ++j){
@@ -362,8 +361,6 @@ int command_dump(char *buffer){
     str_replace(tmp, "," , " , ");
     if ( ( len = get_values(tmp) ) == -1)
         return -1;
-    printf("len : %d\n", len);
-
     if ( len == 1){
         if( num != 0)
             return -1;
@@ -373,16 +370,18 @@ int command_dump(char *buffer){
     else if ( len == 2){
         if ( num != 1)
             return -1;
-        start_address = values[1], end_address = values[2];
+        start_address = values[0], end_address = values[1];
     }
     else if ( len > 2)
         return -1;
 
     if ( start_address > Sh_memory.max_address ||
-            start_address > end_address)
+            start_address > end_address){
+        printf("Address Error!\n");
         return -1;
-    Sh_memory.last_address = end_address;
+    }
     print_memory ( start_address, end_address );
+    Sh_memory.last_address = end_address;
     return 1;
 }
 
@@ -408,6 +407,9 @@ int command_edit(char *buffer){
 
     address = values[0]; value = values[1];
     
+    if ( ! ( 0 <= value && value <= 0xFF ) )
+        return -1;
+
     if( 0 <= address && address <= Sh_memory.max_address){ // boundary check
         Sh_memory.memory[address] = value;
         print_memory(address, address);
@@ -440,6 +442,8 @@ int command_fill(char *buffer){
 
     start = values[0], end = values[1], value = values[2];
 
+    if ( ! (0 <= value && value <= 0xFF) )
+        return -1;
     if(start >= 0 && start <= end && end <= Sh_memory.max_address){ // boundary check
         for(int i = start; i <= end; ++i)
             Sh_memory.memory[i] = value;
@@ -462,8 +466,7 @@ void command_reset(){
 /* quit 명령어를 처리해주는 함수 
  * 추가로 동적할당한 부분을 free 해주고 종료한다.
  */
-void process_quit(){
-    printf("hihi\n");
+void command_quit(){
     Lnode lptr;
     History hptr;
 
@@ -493,7 +496,7 @@ int command_opcode(char *buffer ){
     char *token = NULL;
     char *mnemonic;
     strncpy(tmp, buffer, sizeof(tmp));
-
+    
     token = strtok(tmp, sep);
     while( token != NULL){
         token = strtok(NULL, sep);
@@ -508,7 +511,7 @@ int command_opcode(char *buffer ){
     
     if( ( n_opcode = Hash_find(mnemonic) )== -1)
         return -1;
-    printf("opcode is %d\n", n_opcode);
+    printf("opcode is %X\n", n_opcode);
     return 1;
 }
 
@@ -570,10 +573,12 @@ void main_process(char *buffer){
                 break;
 
             case quit:
-                process_quit();
+                command_quit();
                 break;
 
             case history:
+                add_history(buffer);
+                error_check = 0;
                 print_history();
                 break;
 

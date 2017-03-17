@@ -71,7 +71,7 @@ int command_fill(char *buffer); // fill인 경우 처리해주는 함수
 void command_reset(); // reset인 경우 처리해주는 함수
 int command_opcode(char *mnemonic); // opcode인 경우 처리해주는 함수
 int command_check(char *buffer); // 명령어를 옳바르게 입력한지 확인해주는 함수력
-void process_quit(); // 입력한 명령어가 quit 일 때 process를 종료시켜주는 함수
+void command_quit(); // 입력한 명령어가 quit 일 때 process를 종료시켜주는 함수
 void main_process(char *buffer); // 명령어 string을 받아처리해주는 함수
 
 #endif
