@@ -38,7 +38,6 @@ char str_copy[256]; // string copy용 배열
 Hash hash_table; // hash_table 구조체
 History Hhead = NULL; // history를 linked_list로 구현한 head
 Shell_Memory Sh_memory; // 메모리 정보를 담고 있는 구조체
-Lnode Lhead = NULL;
 // a ,b  값중 작은 값을 반환해준다.
 int min(int a, int b){
     return a < b ? a : b;
@@ -91,8 +90,10 @@ int get_values(char *buffer){
         }
         else{
             value = (int)strtol(token, &error, 16); // 16진수의 값을 10진수로 바꿈
-            if( *error != '\0') // 16진수가 아닌 경우 에러 처리
+            if( *error != '\0'){ // 16진수가 아닌 경우 에러 처리
+                fprintf(stderr, "get values error!(no Hex number)\n");
                 return -1;
+            }
             values[idx++] = value;
             flag = 0;
         }
@@ -175,7 +176,7 @@ void init(){
     hash_table.size = 20;
     for ( i = 0; i < hash_table.size; ++i )
         hash_table.Table[i] = NULL;
-    
+
     Sh_memory.last_address = 1048575;
     Sh_memory.max_address = 1048575;
     for( i = 0; i < Sh_memory.max_address; ++i)
@@ -225,28 +226,11 @@ void Hash_insert(int n_opcode, char *mnemonic){
     hash_table.Table[key] = nptr;
 }
 
-// linked_list insert 함수
-void Link_insert(){
-    Lnode nptr;
-    Lnode ptr;
-
-    nptr = malloc(sizeof(Linked_list));
-    //nptr -> data = his_str;
-    nptr -> next = NULL;
-
-    if(Lhead != NULL){
-       for(ptr = Lhead; ptr -> next != NULL; ptr = ptr -> next);
-       ptr -> next = nptr;
-    }
-
-    else
-        Lhead = nptr;
-}
-
 //가능한 명령어를 출력하는 함수
 void print_help(){
     int i;
-    for(i = 0; i < 9; ++i)
+    int size = sizeof(help_list) / sizeof(char *);
+    for(i = 0; i < size; ++i)
         printf("%s\n", help_list[i]);
 }
 
@@ -307,8 +291,8 @@ int print_memory(int start, int end){
     int str_hex = start / 16 * 16,
         end_hex = end / 16 * 16; // 16단위로 끊어서 세기 위함
     int i, j;
-    char *memory = Sh_memory.memory;
-    
+    unsigned char *memory = Sh_memory.memory;
+
     if(start <= end && start >= 0){ // boundary check
         end = end <= Sh_memory.max_address ? end : Sh_memory.max_address ; // end boundary check
         for ( i = str_hex; i <= end_hex; i += 16){
@@ -392,27 +376,30 @@ int command_dump(char *buffer){
 int command_edit(char *buffer){
     int address, value;
     int num = 0;
-	char tmp[256];
-	strncpy(tmp, buffer, sizeof(tmp));
+    char tmp[256];
+    strncpy(tmp, buffer, sizeof(tmp));
 
-	for ( int i = 0; i < (int)strlen(tmp); ++i)
+    for ( int i = 0; i < (int)strlen(tmp); ++i)
         if ( tmp[i] == ',')
             num++; // ','의 개수를 샌다.
-    if(num != 1) // 1개가 아닌 경우 에러
+    if(num != 1){ // 1개가 아닌 경우 에러
+        fprintf( stderr, "Format error!\nFormat is e[dit] address, value\n");
         return -1;
+    }
 
     str_replace(tmp, ",",  " , "); // ','를 ' , '로 다 바꿔준다.
     if( get_values(tmp) == -1) // values에 에러 있는지 확인
         return -1;
 
     address = values[0]; value = values[1];
-    
-    if ( ! ( 0 <= value && value <= 0xFF ) )
+
+    if ( ! ( 0 <= value && value <= 0xFF ) ){
+        fprintf(stderr, "value boundary error!\n( 0 <= value <= 0xFF )\n");
         return -1;
+    }
 
     if( 0 <= address && address <= Sh_memory.max_address){ // boundary check
         Sh_memory.memory[address] = value;
-        print_memory(address, address);
         return 1;
     }
     return -1;
@@ -425,29 +412,32 @@ int command_edit(char *buffer){
 int command_fill(char *buffer){
     int num = 0;
     int start, end, value;
-	char tmp[256];
+    char tmp[256];
 
-	strncpy(tmp, buffer, sizeof(tmp)); // tmp에 buffer string copy
+    strncpy(tmp, buffer, sizeof(tmp)); // tmp에 buffer string copy
 
     for( int i = 0; i < (int)strlen(buffer); ++i)
         if( buffer[i] == ',') // ',' 개수 확인
             num++;
-    if(num != 2) // ','가 2개가 아니면 에러
+    if(num != 2){ // ','가 2개가 아니면 에러
+        fprintf(stderr, "Format Error!\nFormat is f[ill] start, end, value\n");
         return -1;
+    }
 
-	str_replace(tmp, ",", " , "); // ',' 를 ' , '로 치환해준다.
+    str_replace(tmp, ",", " , "); // ',' 를 ' , '로 치환해준다.
 
     if ( get_values(tmp) == - 1) // value에 에러 있는지 확인
         return -1;
 
     start = values[0], end = values[1], value = values[2];
 
-    if ( ! (0 <= value && value <= 0xFF) )
+    if ( ! (0 <= value && value <= 0xFF) ){
+        fprintf ( stderr, "value boundary error!\nvalue must 0 <= value <= 0xFF");
         return -1;
+    }
     if(start >= 0 && start <= end && end <= Sh_memory.max_address){ // boundary check
         for(int i = start; i <= end; ++i)
             Sh_memory.memory[i] = value;
-        print_memory(start, end);
         return 1;
     }
     return -1;
@@ -457,7 +447,7 @@ int command_fill(char *buffer){
  * 메모리를 모두 0x00으로 초기화해준다.
  */
 void command_reset(){
-    char *memory = Sh_memory.memory;
+    unsigned char *memory = Sh_memory.memory;
     int i;
     for ( i = 0; i < Sh_memory.max_address; ++i )
         memory[i] = 0;
@@ -467,14 +457,7 @@ void command_reset(){
  * 추가로 동적할당한 부분을 free 해주고 종료한다.
  */
 void command_quit(){
-    Lnode lptr;
     History hptr;
-
-    for ( ; Lhead != NULL; ){
-        lptr = Lhead;
-        Lhead = Lhead->next;
-        free(lptr);
-    }
 
     for ( int i = 0; i < hash_table.size; ++i ){
         for ( ; Hhead != NULL; ){
@@ -496,7 +479,7 @@ int command_opcode(char *buffer ){
     char *token = NULL;
     char *mnemonic;
     strncpy(tmp, buffer, sizeof(tmp));
-    
+
     token = strtok(tmp, sep);
     while( token != NULL){
         token = strtok(NULL, sep);
@@ -505,12 +488,17 @@ int command_opcode(char *buffer ){
         mnemonic = token;
         len++;
     }
-    
-    if ( len != 1 )
+
+    if ( len != 1 ){
+        fprintf(stderr, "Format error!\nFormat is [opcode mnemonic]\n");
         return -1;
-    
-    if( ( n_opcode = Hash_find(mnemonic) )== -1)
+    }
+
+    if( ( n_opcode = Hash_find(mnemonic) )== -1){
+        fprintf(stderr, "There is no mnemonic\n");
         return -1;
+    }
+
     printf("opcode is %X\n", n_opcode);
     return 1;
 }
@@ -531,19 +519,19 @@ int command_check(char *user_str){
     command_num = command_find(token); // 명령어가 존재하는지 확인
     if(command_num == -1) // 없는 경우
         return -1;
-    
+
     while ( token != NULL ){
         if(i > 6) // 이상한 명령어 입력해준경우 체크
             return -1;
         len++;
         token = strtok(NULL, sep);
     }
-    
+
     if ( ( 0 <= command_num && command_num <= 7 ) || command_num ==  14 
             || command_num == 16 )
         if ( len > 1 )
             return -1; // dir나 help 같은 추가로 입력할 것이 없는 명령어 에러 확인
-    
+
     if( 0 <= command_num && command_num <= 13)
         return command_num / 2; // du[mp] 같이 입력할 수 있는 경우
     else if ( command_num > 13)

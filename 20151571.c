@@ -2,15 +2,29 @@
 
 int main(void){
     char buffer[256];
+    char tmpc;
     const int Max_len = 256; 
-
+    int len = 0;
     init();
 
     while(1){
         printf("sicsim> ");
-        fgets(buffer, Max_len, stdin);
-        if ( buffer[strlen(buffer) -1 ] == '\n')
-            buffer[strlen(buffer) - 1 ] = '\0';
+        len = 0;
+        while( ( tmpc = getchar() )  != '\n'){
+            if ( tmpc == EOF )
+                command_quit();
+
+            if( len > Max_len )
+                continue;
+            buffer[len++] = tmpc;
+        }
+        
+        if(len > Max_len ){
+            fprintf(stderr, "Max length is 256\n");
+            continue;
+        }
+        
+        buffer[len] = '\0';
         main_process(buffer);
     }
     return 0;

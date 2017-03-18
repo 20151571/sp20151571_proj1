@@ -32,7 +32,6 @@ typedef struct _HASH_{
 }Hash;
 #endif
 
-
 typedef struct HASH_Linked_List{
     int n_opcode;
     char str_opcode[50];
@@ -40,7 +39,7 @@ typedef struct HASH_Linked_List{
 }Hash_Node;
 
 typedef struct MEMORY{
-    char memory[1048576];
+    unsigned char memory[1048576];
     int last_address;
     int max_address;
 }Shell_Memory;
@@ -57,7 +56,6 @@ void init(); // 초기화
 int Hash_find(char *); // hash에서 찾는 함수
 
 void Hash_insert(int value, char *mnemonic); // hash에 insert하는 함수
-void Link_insert(); // linked_list insert 함수
 
 void print_help(); // helplist를 출력하는 함수
 void print_dir(); // dir를 출력하는 함수
