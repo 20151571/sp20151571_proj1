@@ -39,8 +39,8 @@ Commands that can use in sicsim
 						- Start address must be more than end address
 						- ex)
 							- du 4, 4, (X)
-                           				- du ,4, 4 (X)
-                            				- du 4  4  (X)
+							- du ,4, 4 (X)
+							- du 4  4  (X)
 							- du 4, 4  (O)
 							- du 4 , 4 (O)
 							- du 4,4   (O)
